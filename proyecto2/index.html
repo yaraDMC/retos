@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Fábrica de Reciclaje</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', cursive;
+            background-color: #607d8b; /* Gris-Azul */
+            color: #eceff1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            overflow: hidden;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        #hud {
+            display: flex;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px #37474f;
+        }
+
+        #conveyor-belt {
+            width: 100%;
+            height: 100px;
+            background-color: #455a64;
+            border: 5px solid #37474f;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+        }
+
+        #sorting-zone {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 100%;
+            background-color: rgba(255, 235, 59, 0.3); /* Amarillo translúcido */
+            border-left: 4px dashed #fbc02d;
+            border-right: 4px dashed #fbc02d;
+            z-index: 1;
+        }
+
+        .item {
+            position: absolute;
+            top: 50%;
+            left: 100%; /* Empieza fuera, a la derecha */
+            transform: translateY(-50%);
+            font-size: 60px;
+            z-index: 2;
+            transition: opacity 0.2s;
+        }
+
+        /* Esta animación mueve el objeto */
+        .item.moving {
+            animation: slide 5s linear forwards;
+        }
+        
+        @keyframes slide {
+            from { left: 100%; }
+            to { left: -20%; } /* Termina fuera, a la izquierda */
+        }
+
+        #button-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .bin-button {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 0.8rem;
+            padding: 20px 10px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            text-align: center;
+            border-bottom-width: 6px;
+            border-style: solid;
+        }
+        .bin-button:active {
+            transform: translateY(2px);
+            border-bottom-width: 4px;
+        }
+
+        /* Usamos tus colores preferidos */
+        #recycle-bin {
+            background-color: #ffffff;
+            color: #000;
+            border-color: #cccccc;
+        }
+        #compost-bin {
+            background-color: #4caf50;
+            color: #fff;
+            border-color: #388e3c;
+        }
+        #trash-bin {
+            background-color: #212121;
+            color: #fff;
+            border-color: #000000;
+        }
+        
+        .bin-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .screen {
+            display: none;
+            position: absolute;
+            top: -50px;
+            left: -20px;
+            right: -20px;
+            bottom: -50px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            z-index: 100;
+            border-radius: 15px;
+        }
+        .screen.active { display: flex; }
+        .screen h1 { color: #fbc02d; }
+        .screen p { font-size: 0.9rem; line-height: 1.6; max-width: 80%; }
+        .screen button {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 1rem;
+            padding: 15px 25px;
+            background-color: #4caf50;
+            color: white;
+            border: 3px solid #388e3c;
+            box-shadow: 0 4px #2e7d32;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="hud">
+            <span>Puntos: <span id="score">0</span></span>
+            <span>Vidas: <span id="lives">❤️❤️❤️</span></span>
+        </div>
+
+        <div id="conveyor-belt">
+            <div id="sorting-zone"></div>
+            </div>
+
+        <div id="button-controls">
+            <button classs="bin-button" id="recycle-bin" data-type="reciclaje">RECICLAJE ♻️</button>
+            <button class="bin-button" id="compost-bin" data-type="organico">ORGÁNICO 🍏</button>
+            <button class="bin-button" id="trash-bin" data-type="basura">BASURA 🗑️</button>
+        </div>
+    </div>
+
+    <div id="start-screen" class="screen active">
+        <h1>Fábrica de Reciclaje</h1>
+        <p>Presiona el botón correcto CUANDO el objeto esté DENTRO de la zona amarilla.</p>
+        <button id="start-button">Empezar</button>
+    </div>
+
+    <div id="game-over-screen" class="screen">
+        <h1>¡Juego Terminado!</h1>
+        <p>Puntuación Final: <span id="final-score">0</span></p>
+        <button id="restart-button">Jugar de Nuevo</button>
+    </div>
+
+    <script>
+        // --- Elementos del DOM ---
+        const belt = document.getElementById('conveyor-belt');
+        const zone = document.getElementById('sorting-zone');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const buttons = document.querySelectorAll('.bin-button');
+        
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const startButton = document.getElementById('start-button');
+        const restartButton = document.getElementById('restart-button');
+        const finalScoreEl = document.getElementById('final-score');
+
+        // --- Definición de Ítems ---
+        const items = [
+            { emoji: '📄', type: 'reciclaje' },
+            { emoji: '🍾', type: 'reciclaje' },
+            { emoji: '🥫', type: 'reciclaje' },
+            { emoji: '📦', type: 'reciclaje' },
+            { emoji: '🍎', type: 'organico' },
+            { emoji: '🍌', type: 'organico' },
+            { emoji: '🥕', type: 'organico' },
+            { emoji: '🔋', type: 'basura' },
+            { emoji: '🛍️', type: 'basura' },
+            { emoji: '💡', type: 'basura' }
+        ];
+
+        // --- Variables del Juego ---
+        let score = 0;
+        let lives = 3;
+        let gameSpeedMs = 5000; // 5 segundos
+        let currentItem = null;
+        let itemTimeout = null;
+        let canPress = false;
+        let gameActive = false;
+
+        // --- Funciones del Juego ---
+
+        function startGame() {
+            score = 0;
+            lives = 3;
+            gameSpeedMs = 5000;
+            gameActive = true;
+            updateHUD();
+            startScreen.classList.remove('active');
+            gameOverScreen.classList.remove('active');
+            spawnItem();
+        }
+
+        function updateHUD() {
+            scoreEl.textContent = score;
+            livesEl.textContent = '❤️'.repeat(lives) + '🖤'.repeat(3 - lives);
+        }
+
+        function spawnItem() {
+            if (!gameActive) return;
+
+            // Limpiar ítem anterior si existe
+            if (currentItem) currentItem.remove();
+
+            // Elegir ítem
+            const itemData = items[Math.floor(Math.random() * items.length)];
+            
+            currentItem = document.createElement('div');
+            currentItem.classList.add('item');
+            currentItem.textContent = itemData.emoji;
+            currentItem.dataset.type = itemData.type;
+            belt.appendChild(currentItem);
+
+            // Iniciar animación
+            // Forzar reinicio de animación
+            void currentItem.offsetWidth; 
+            currentItem.classList.add('moving');
+            currentItem.style.animationDuration = ${gameSpeedMs}ms;
+
+            // Calcular tiempos de la zona
+            // Asumimos que la zona está al 50% y tiene 120px de ancho
+            // El canvas tiene 500px.
+            // Centro = 250px. Zona va de 190px a 310px.
+            // % de entrada = 190 / 500 = 38%
+            // % de salida = 310 / 500 = 62%
+            const enterZoneTime = gameSpeedMs * (1 - 0.62); // Entra por la derecha
+            const exitZoneTime = gameSpeedMs * (1 - 0.38);
+            
+            canPress = false;
+            
+            // Activar botones al entrar a la zona
+            setTimeout(() => {
+                if (!gameActive) return;
+                canPress = true;
+                buttons.forEach(b => b.disabled = false);
+            }, enterZoneTime);
+
+            // Desactivar y penalizar si sale de la zona
+            itemTimeout = setTimeout(() => {
+                if (!gameActive) return;
+                if (canPress) { // Si canPress sigue true, significa que no presionó
+                    loseLife();
+                }
+            }, exitZoneTime);
+        }
+
+        function handlePress(e) {
+            const choice = e.currentTarget.dataset.type;
+            
+            if (!gameActive || !canPress || !currentItem) return;
+
+            // Desactivar botones y "canPress" para evitar clics múltiples
+            canPress = false; 
+            buttons.forEach(b => b.disabled = true);
+            clearTimeout(itemTimeout); // Evita la penalización por "fallar"
+
+            const correctType = currentItem.dataset.type;
+
+            if (choice === correctType) {
+                score++;
+                currentItem.style.opacity = 0; // Desaparece
+                // Acelerar un poco
+                gameSpeedMs = Math.max(2000, gameSpeedMs - 100); 
+            } else {
+                loseLife();
+            }
+
+            // Cargar el siguiente ítem
+            setTimeout(spawnItem, 300);
+        }
+
+        function loseLife() {
+            lives--;
+            if (currentItem) {
+                // Flash rojo
+                currentItem.style.transition = "background-color 0.1s, opacity 0.2s";
+                currentItem.style.backgroundColor = "red";
+                currentItem.style.opacity = 0;
+            }
+            if (lives <= 0) {
+                gameOver();
+            }
+            updateHUD();
+        }
+
+        function gameOver() {
+            gameActive = false;
+            if (currentItem) currentItem.remove();
+            clearTimeout(itemTimeout);
+            
+            finalScoreEl.textContent = score;
+            gameOverScreen.classList.add('active');
+        }
+
+        // --- Event Listeners ---
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+        buttons.forEach(button => {
+            button.addEventListener('click', handlePress);
+            button.disabled = true;
+        });
+
+    </script>
+</body>
+</html>
